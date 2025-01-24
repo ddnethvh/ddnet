@@ -1,0 +1,4 @@
+other/*/include/* linguist-vendored
+src/engine/external/* linguist-vendored
+*.ext linguist-vendored=true
+*.ext linguist-documentation=true
