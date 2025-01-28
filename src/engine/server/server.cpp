@@ -4101,7 +4101,6 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
 	m_pStdoutLogger = pStdoutLogger;
 }
 
-// Add new function to check for proxy
 bool CServer::IsProxy(const NETADDR *pAddr)
 {
     Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", "Checking for proxy...");
