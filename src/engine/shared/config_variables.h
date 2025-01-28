@@ -752,3 +752,4 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
  * Add config variables for mods below this comment to avoid merge conflicts.
  */
 MACRO_CONFIG_STR(SvApiKey, sv_api_key, 32, "your_api_key_here", CFGFLAG_SERVER, "API key for the website")
+MACRO_CONFIG_INT(SvProxyCheck, sv_proxy_check, 0, 0, 1, CFGFLAG_SERVER, "Check if connecting clients are using a proxy/VPN")

@@ -289,6 +289,8 @@ public:
 	virtual const char *GetMapName() const = 0;
 
 	virtual bool IsSixup(int ClientId) const = 0;
+
+	virtual bool IsProxy(const NETADDR *pAddr) = 0;
 };
 
 class IGameServer : public IInterface

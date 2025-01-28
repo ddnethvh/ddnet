@@ -1085,6 +1085,24 @@ int CServer::NewClientNoAuthCallback(int ClientId, void *pUser)
 int CServer::NewClientCallback(int ClientId, void *pUser, bool Sixup)
 {
 	CServer *pThis = (CServer *)pUser;
+
+	// Check if connection is from a proxy
+	if(g_Config.m_SvProxyCheck)
+	{
+		const NETADDR *pAddr = pThis->m_NetServer.ClientAddr(ClientId);
+
+		if(pAddr)
+		{
+			if(pThis->IsProxy(pAddr))
+			{
+				char aBuf[128];
+				str_format(aBuf, sizeof(aBuf), "Proxy connections are not allowed");
+				pThis->m_NetServer.Drop(ClientId, aBuf);
+				return 0;
+			}
+		}
+	}
+
 	pThis->m_aClients[ClientId].m_State = CClient::STATE_PREAUTH;
 	pThis->m_aClients[ClientId].m_DnsblState = CClient::DNSBL_STATE_NONE;
 	pThis->m_aClients[ClientId].m_aName[0] = 0;
@@ -1119,7 +1137,7 @@ void CServer::InitDnsbl(int ClientId)
 {
 	NETADDR Addr = *m_NetServer.ClientAddr(ClientId);
 
-	//TODO: support ipv6
+	// TODO: support ipv6
 	if(Addr.type != NETTYPE_IPV4)
 		return;
 
@@ -1375,7 +1393,8 @@ void CServer::SendRconCmdRem(const IConsole::CCommandInfo *pCommandInfo, int Cli
 
 int CServer::GetConsoleAccessLevel(int ClientId)
 {
-	return m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : IConsole::ACCESS_LEVEL_HELPER;
+	return m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD :
+																	    IConsole::ACCESS_LEVEL_HELPER;
 }
 
 int CServer::NumRconCommands(int ClientId)
@@ -1735,7 +1754,9 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "server", aBuf);
 					m_RconClientId = ClientId;
 					m_RconAuthLevel = m_aClients[ClientId].m_Authed;
-					Console()->SetAccessLevel(m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : m_aClients[ClientId].m_Authed == AUTHED_HELPER ? IConsole::ACCESS_LEVEL_HELPER : IConsole::ACCESS_LEVEL_USER);
+					Console()->SetAccessLevel(m_aClients[ClientId].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientId].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD :
+																	 m_aClients[ClientId].m_Authed == AUTHED_HELPER      ? IConsole::ACCESS_LEVEL_HELPER :
+																							       IConsole::ACCESS_LEVEL_USER);
 					{
 						CRconClientLogger Logger(this, ClientId);
 						CLogScope Scope(&Logger);
@@ -1790,8 +1811,8 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 					if(!IsSixup(ClientId))
 					{
 						CMsgPacker Msgp(NETMSG_RCON_AUTH_STATUS, true);
-						Msgp.AddInt(1); //authed
-						Msgp.AddInt(1); //cmdlist
+						Msgp.AddInt(1); // authed
+						Msgp.AddInt(1); // cmdlist
 						SendMsg(&Msgp, MSGFLAG_VITAL, ClientId);
 					}
 					else
@@ -3167,8 +3188,9 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			if(pThis->Config()->m_SvDnsbl)
 			{
 				const char *pDnsblStr = pThis->m_aClients[i].m_DnsblState == CClient::DNSBL_STATE_WHITELISTED ? "white" :
-																pThis->m_aClients[i].m_DnsblState == CClient::DNSBL_STATE_BLACKLISTED ? "black" :
-																									pThis->m_aClients[i].m_DnsblState == CClient::DNSBL_STATE_PENDING ? "pending" : "n/a";
+							pThis->m_aClients[i].m_DnsblState == CClient::DNSBL_STATE_BLACKLISTED ? "black" :
+							pThis->m_aClients[i].m_DnsblState == CClient::DNSBL_STATE_PENDING     ? "pending" :
+																"n/a";
 
 				str_format(aDnsblStr, sizeof(aDnsblStr), " dnsbl=%s", pDnsblStr);
 			}
@@ -3177,9 +3199,10 @@ void CServer::ConStatus(IConsole::IResult *pResult, void *pUser)
 			aAuthStr[0] = '\0';
 			if(pThis->m_aClients[i].m_AuthKey >= 0)
 			{
-				const char *pAuthStr = pThis->m_aClients[i].m_Authed == AUTHED_ADMIN ? "(Admin)" :
-												       pThis->m_aClients[i].m_Authed == AUTHED_MOD ? "(Mod)" :
-																		     pThis->m_aClients[i].m_Authed == AUTHED_HELPER ? "(Helper)" : "";
+				const char *pAuthStr = pThis->m_aClients[i].m_Authed == AUTHED_ADMIN  ? "(Admin)" :
+						       pThis->m_aClients[i].m_Authed == AUTHED_MOD    ? "(Mod)" :
+						       pThis->m_aClients[i].m_Authed == AUTHED_HELPER ? "(Helper)" :
+													"";
 
 				str_format(aAuthStr, sizeof(aAuthStr), " key=%s %s", pThis->m_AuthManager.KeyIdent(pThis->m_aClients[i].m_AuthKey), pAuthStr);
 			}
@@ -3724,8 +3747,8 @@ void CServer::LogoutClient(int ClientId, const char *pReason)
 	if(!IsSixup(ClientId))
 	{
 		CMsgPacker Msg(NETMSG_RCON_AUTH_STATUS, true);
-		Msg.AddInt(0); //authed
-		Msg.AddInt(0); //cmdlist
+		Msg.AddInt(0); // authed
+		Msg.AddInt(0); // cmdlist
 		SendMsg(&Msg, MSGFLAG_VITAL, ClientId);
 	}
 	else
@@ -4076,4 +4099,68 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
 {
 	m_pFileLogger = pFileLogger;
 	m_pStdoutLogger = pStdoutLogger;
+}
+
+// Add new function to check for proxy
+bool CServer::IsProxy(const NETADDR *pAddr)
+{
+    Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", "Checking for proxy...");
+	char aAddrStr[NETADDR_MAXSTRSIZE];
+	net_addr_str(pAddr, aAddrStr, sizeof(aAddrStr), false);
+
+	char aUrl[256];
+	str_format(aUrl, sizeof(aUrl), "https://proxycheck.io/v2/%s", aAddrStr);
+
+	auto pRequest = HttpGet(aUrl);
+	pRequest->Timeout(CTimeout{4000, 15000, 500, 5});
+
+	// Convert unique_ptr to shared_ptr for the interface
+	std::shared_ptr<IHttpRequest> pHttpRequest = std::move(pRequest);
+
+	// Send request synchronously through engine's HTTP interface
+	Kernel()->RequestInterface<IHttp>()->Run(pHttpRequest);
+
+	auto *pCasted = static_cast<CHttpRequest *>(pHttpRequest.get());
+	pCasted->Wait();
+
+	if(pCasted->State() != EHttpState::DONE)
+		return false;
+
+	// Parse response
+	unsigned char *pResult;
+	size_t ResultLength;
+	pCasted->Result(&pResult, &ResultLength);
+
+	json_value *pJson = json_parse((const char *)pResult, ResultLength);
+	if(!pJson)
+		return false;
+
+	const json_value &rStatus = (*pJson)["status"];
+	const json_value &rAddr = (*pJson)[aAddrStr];
+
+	bool IsProxy = false;
+
+	if(rStatus.type == json_string && str_comp(rStatus, "ok") == 0)
+	{
+		if(rAddr.type == json_object)
+		{
+			const json_value &rProxy = rAddr["proxy"];
+			if(rProxy.type == json_string && str_comp(rProxy, "yes") == 0)
+			{
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "Proxy detected: %s", aAddrStr);
+				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", aBuf);
+				IsProxy = true;
+			}
+			else
+			{
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "No proxy detected: %s", aAddrStr);
+				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", aBuf);
+			}
+		}
+	}
+
+	json_value_free(pJson);
+	return IsProxy;
 }

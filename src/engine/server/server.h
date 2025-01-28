@@ -483,6 +483,8 @@ public:
 
 	void SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr<ILogger> &&pStdoutLogger);
 
+	bool IsProxy(const NETADDR *pAddr);
+
 #ifdef CONF_FAMILY_UNIX
 	enum CONN_LOGGING_CMD
 	{
