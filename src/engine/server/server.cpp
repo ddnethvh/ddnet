@@ -4150,6 +4150,18 @@ bool CServer::IsProxy(const NETADDR *pAddr)
 				char aBuf[256];
 				str_format(aBuf, sizeof(aBuf), "Proxy detected: %s", aAddrStr);
 				Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", aBuf);
+				
+				if(g_Config.m_SvProxyCheckBan)
+				{
+					// Ban the proxy permanently
+					char aReason[128];
+					str_format(aReason, sizeof(aReason), "Proxy/VPN detected");
+					m_NetServer.NetBan()->BanAddr(pAddr, -1, aReason, false); // -1 means permanent ban
+					
+					str_format(aBuf, sizeof(aBuf), "Banned proxy: %s", aAddrStr);
+					Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "antiproxy", aBuf);
+				}
+				
 				IsProxy = true;
 			}
 			else
