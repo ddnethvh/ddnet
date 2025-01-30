@@ -1537,7 +1537,6 @@ set(EXPECTED_DATA
   mapres/winter_mountains.png
   mapres/winter_mountains2.png
   mapres/winter_mountains3.png
-  maps/license.txt
   menuimages/demos.png
   menuimages/editor.png
   menuimages/local_server.png
